@@ -1,0 +1,8 @@
+#pragma once
+#include <string_view>
+namespace navier::viewer {
+// Separate literals keep each part below MSVC's string literal size limit.
+inline constexpr std::string_view html_parts[] = {
+@NAVIER_VIEWER_CHUNKS@
+};
+}
