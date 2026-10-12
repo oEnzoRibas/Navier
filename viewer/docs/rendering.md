@@ -1,0 +1,13 @@
+# Renderização
+
+Three.js/WebGL2 é o caminho principal, sem Canvas2D para colorir grids. Plano usa DataTexture float e shader colormap/threshold. Cortes extraem um plano da representação carregada. Pontos usam BufferGeometry com posições/scalars e shader GPU. Volume usa Data3DTexture e ray marching no fragment shader (128 amostras/raio), em perspectiva ou ortográfico, com integração de opacidade; sem OES_texture_float_linear usa nearest. Dimensões físicas 3D respeitam espaçamento relativo.
+
+Valores científicos conservam a precisão do adapter. Float32 é uma representação separada para GPU, não substitui dados fonte. Valores não finitos são contabilizados; shaders descartam inválidos/extremos incompatíveis com a representação. Inspeção em planos usa o buffer científico amostrado, coordenadas originais e stride. Não oferece precisão float64 na GPU. LOD por stride pode perder extrema/estruturas pequenas e não usa filtro anti-alias.
+
+Magnitude/curl e posições para pontos/vetores/streamlines são calculados em workers. Glifos e streamlines usam LineSegments2 e LineMaterial para largura real. Integração RK2 tem limite de 500 passos/semente e orçamento de vértices; as cores por segmento são preparadas uma vez por geometria. Glifos normalizam direção e escala, não representam unidades absolutas de comprimento. Nuvem tem até 60 mil pontos; ajustes de thresholds alteram visibilidade. Sparse mostra valores não zero. Frente de onda usa a mesma nuvem com thresholds; não é uma isosurface.
+
+Colormap separa valores do esquema visual, com legenda numérica do campo escolhido. Auto escala por estado; fixa usa primeiro estado carregado de cada campo; manual usa entradas; global exige varredura explícita e cancelável. Log só aceita limite positivo, simetria permite campos com sinal. Escala e opacity são uniforms/textura de palette, embora uma mudança de settings atualmente reconstrua geometria/recursos e possa repetir análise. Otimização futura deve distinguir uniforms de mudanças de geometria.
+
+Engine renderiza quando dirty/câmera muda; mantém câmera entre checkpoints e fit ao trocar dataset. Libera recursos antigos ao substituir campo. Export PNG força render e salva viewport, não painéis/timeline. Comparação mantém dois contextos e câmeras independentes. O navegador limita quantidade de contextos e tamanho de texturas; qualidade reduzida/erro explícito trata limite 3D. Inspector volumétrico e sincronização de câmeras permanecem futuros.
+
+Referências: [Three.js Data3DTexture](https://threejs.org/docs/pages/Data3DTexture.html), [Vite workers](https://vite.dev/guide/features.html#web-workers).

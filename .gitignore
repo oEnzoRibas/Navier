@@ -76,3 +76,9 @@ simulations.png
 # Generated GUI and simulation runs
 navier-viewer.html
 runs/
+
+# Frontend toolchain output
+viewer/node_modules/
+viewer/dist/
+viewer/*.tsbuildinfo
+viewer/.vite/
