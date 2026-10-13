@@ -1,0 +1,2 @@
+dataset_bytes,checkpoints,index_bytes,open_ms,open_records_scanned,open_dataset_bytes_read,write_ms,write_MiB_s,exact_descriptor_ms,field_read_ms,range_1000_ms,warm_descriptor_us,buffer_hits,buffer_misses,buffer_evictions,buffer_cached,field_reads
+10759016032,2560,131072,222.0521,0,346,133766.9812,76.7050072258,0.0904,7.0384,58.3098,54.5888,4005,15,0,15,1

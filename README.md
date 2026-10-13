@@ -1,6 +1,6 @@
 # Navier
 
-Navier is an open-source experimental storage and indexing engine for numerical simulation states. This first version is also an Algorithms and Data Structures project: its central contribution is a generic, independently tested B+ Tree implemented from scratch.
+Navier is an open-source experimental storage and indexing engine for numerical simulation states. Its core includes independently tested in-memory and persistent B+ Trees implemented from scratch.
 
 ## Motivation
 
@@ -10,12 +10,11 @@ Navier is an educational foundation, with no claim of superiority over HDF5, Net
 
 ## Current scope
 
-- Generic in-memory B+ Tree: insertion, replacement, exact lookup, inclusive range queries, linked leaves, and structural validation.
-- Append-only binary checkpoint file containing step, time, and one `std::vector<double>` field.
-- RAM index rebuilt by scanning record headers on reopening a file.
-- Synthetic checkpoint demo, two external 2D simulation producers, GoogleTest suite, and linear-index comparison benchmark.
+Two compatible paths: legacy NAVIER01 (`CheckpointStore`) and field-aware NAVIER02 (`DatasetStore`). NAVIER02 implements float32/float64 fields, per-checkpoint shapes/units/metrics, bounded selective reads, CRCs, persistent paged temporal B+ Tree, LRU buffer pool and explicit tail recovery. The viewer uses the real C++ core through a local CLI transport; 3D rendering includes real marching-tetrahedra isosurfaces.
 
-Future milestones include a persistent page-based B+ Tree, buffer pool, scientific metadata indexes, advanced solver integrations, an interactive viewer, compression, and asynchronous checkpointing. None is implemented in this MVP.
+New Wave3D and Gray–Scott 3D producers save NAVIER02. Other producers retain NAVIER01. A real 10 GiB file was generated and fully checksum-validated. See [architecture](docs/architecture.md), [results and limitations](docs/benchmarking.md), [simulation commands](docs/simulations.md), [development](docs/development.md) and [roadmap](docs/roadmap.md).
+
+Regions/chunks, compression, persistent metric indexes, exact solver restart and power-loss durability are pending. No comparison establishing superiority over mature scientific storage libraries was performed.
 
 ## Build and test
 
@@ -55,7 +54,7 @@ MSVC supports the ASan option; UBSan is unavailable with MSVC. Sanitizer runtime
 
 ## Explore files directly with Navier
 
-The `navier_cli` build target produces the `navier` executable (`navier.exe` on Windows). It opens an existing checkpoint file, rebuilds the B+ Tree index, and exposes the same storage API directly from the terminal:
+The `navier_cli` build target produces the `navier` executable (`navier.exe` on Windows). It detects the format: NAVIER01 rebuilds its RAM index; NAVIER02 reuses its persistent index when healthy. It exposes storage directly from the terminal:
 
 ```powershell
 .\build-msvc\Release\navier.exe info heat2d.data
@@ -65,7 +64,7 @@ The `navier_cli` build target produces the `navier` executable (`navier.exe` on 
 
 `info` prints file size, unique checkpoint count, step bounds, and the first ten records. `get` loads one payload and prints its length plus a preview of the first eight values. `range` lists matching metadata and record locations with inclusive bounds. `--help` prints usage. Missing files are rejected without creating them. Missing steps return exit code 2; other errors return 1. The current storage API requires write access when opening its stream, although these CLI commands do not modify records. Disable this executable with `-DNAVIER_BUILD_CLI=OFF`.
 
-This terminal explorer is the direct user interface to Navier's storage/indexing engine. The optional plot script below provides static images; an interactive graphical viewer remains a future milestone.
+This terminal explorer is the direct user interface to Navier's storage/indexing engine. The optional plot script below provides static images; the local React/Three.js graphical viewer is available through `start_viewer.cmd`.
 
 ## Run the two 2D simulations
 
@@ -157,15 +156,15 @@ cmake --build build-release
 
 Without arguments the datasets are 1,000, 10,000, 100,000, and 1,000,000 elements, each with 1,000 lookups. Optional arguments select element and lookup counts. Output is CSV: elements, tree height, lookups, nanoseconds per lookup for both indexes, mean comparisons for both indexes, and checksum.
 
-Both indexes contain the same shuffled keys and use the same pre-generated queries, including misses, with a fixed seed. Construction, validation, and query generation are excluded from timing. Each index receives a warm-up pass. Checksums are printed and compared to retain observable lookup work. Linear comparisons count equality checks; B+ Tree comparisons count ordering predicate calls, so these counts describe different operations. Instrumentation is included in both timings. A single sample is a smoke benchmark, not a statistical performance study; repeat runs and report compiler, configuration, hardware, and workload when interpreting results. No benchmark numbers are claimed here.
+Both indexes contain the same shuffled keys and use the same pre-generated queries, including misses, with a fixed seed. Construction, validation, and query generation are excluded from timing. Each index receives a warm-up pass. Checksums are printed and compared to retain observable lookup work. Linear comparisons count equality checks; B+ Tree comparisons count ordering predicate calls, so these counts describe different operations. Instrumentation is included in both timings. A single sample is a smoke benchmark, not a statistical performance study; repeat runs and report compiler, configuration, hardware, and workload when interpreting results. This paragraph describes the original benchmark; new measured results and CSVs are in [benchmarking](docs/benchmarking.md).
 
-## Limitations and evolution
+## Legacy NAVIER01 limitations
 
-The tree and store are single-threaded. The store is not transactional, offers no crash recovery or checksums, and requires exclusive access to its file. `flush()` checks stream errors but does not guarantee power-loss durability. A failed write can leave a truncated tail, which is rejected on reopening. Insertion assumes successful allocations and nonthrowing element/comparator operations; there is no strong exception guarantee for allocation failures or throwing user types. After such an insertion failure, discard the tree/store and reopen the file when valid.
+The legacy in-memory tree and CheckpointStore are single-threaded. CheckpointStore is not transactional, offers no crash recovery or checksums, and requires exclusive access to its file. `flush()` checks stream errors but does not guarantee power-loss durability. A failed write can leave a truncated tail, which is rejected on reopening. Insertion assumes successful allocations and nonthrowing element/comparator operations; there is no strong exception guarantee for allocation failures or throwing user types. After such an insertion failure, discard the tree/store and reopen the file when valid.
 
-The B+ Tree is **not persisted**: reopening scans record headers, reconstructs the index, and skips payload bytes. This is a linear-time startup step. Range metadata queries avoid loading numerical fields. The format uses IEEE-754 binary64 and little-endian integers; arbitrary file contents are not authenticated. Large range results are materialized in memory.
+The legacy CheckpointStore B+ Tree is **not persisted**: reopening scans record headers, reconstructs the index, and skips payload bytes. This is a linear-time startup step. Range metadata queries avoid loading numerical fields. The format uses IEEE-754 binary64 and little-endian integers; arbitrary file contents are not authenticated. Large range results are materialized in memory.
 
-Future evolution replaces the store's internal index with a page-based persistent tree without exposing those details to producers. No solver-specific or physics-specific abstractions are part of the index. See [architecture](docs/architecture.md).
+DatasetStore (NAVIER02) now implements a persistent paged tree, checksums, bounded fields and prefix recovery. It serializes calls within one instance; cross-process exclusive writer ownership remains required. Power-loss durability, chunks and compaction remain pending. See [architecture](docs/architecture.md) and [roadmap](docs/roadmap.md).
 
 ## License
 
