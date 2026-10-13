@@ -21,11 +21,13 @@ struct AntennaOptions {
     double turn_on = 4.0;
     double moment = 1.0;
     double exclusion_radius = 0.6;
+    double phase = 0.0;
 };
 
 struct DipoleMoment { double value, first, second; };
 struct AntennaSample {
     std::array<double, 3> electric{}, magnetic{}, poynting{}, vector_potential{};
+    std::array<double, 3> radiation_electric{}, radiation_magnetic{};
     double potential = 0, energy = 0, radiation_energy = 0;
     bool valid = true;
 };
@@ -46,6 +48,8 @@ public:
                 throw std::invalid_argument("Antenna lengths and times must be positive and finite");
         if (!std::isfinite(options.moment) || std::abs(options.moment) > 100)
             throw std::invalid_argument("Dipole moment must be finite and have magnitude <= 100");
+        if (!std::isfinite(options.phase) || std::abs(options.phase) > 1000)
+            throw std::invalid_argument("Dipole phase must be finite and have magnitude <= 1000 radians");
         if (options.half_extent < 1 || options.half_extent > 100 ||
             options.period < 0.5 || options.period > 100 || options.turn_on < options.dt ||
             options.turn_on > 100 || options.exclusion_radius < 0.05 ||
@@ -76,7 +80,7 @@ public:
             second = 60 * s * (2 * s * s - 3 * s + 1) /
                      (options_.turn_on * options_.turn_on);
         }
-        const auto sine = std::sin(omega_ * time), cosine = std::cos(omega_ * time);
+        const auto sine = std::sin(omega_ * time + options_.phase), cosine = std::cos(omega_ * time + options_.phase);
         return {options_.moment * envelope * sine,
                 options_.moment * (first * sine + envelope * omega_ * cosine),
                 options_.moment * (second * sine + 2 * first * omega_ * cosine -
@@ -93,6 +97,7 @@ public:
             const auto invalid = std::numeric_limits<double>::quiet_NaN();
             out.electric.fill(invalid); out.magnetic.fill(invalid); out.poynting.fill(invalid);
             out.vector_potential.fill(invalid);
+            out.radiation_electric.fill(invalid); out.radiation_magnetic.fill(invalid);
             out.potential = out.energy = out.radiation_energy = invalid;
             out.valid = false;
             return out;
@@ -111,6 +116,8 @@ public:
             out.electric[axis] = near * (3 * n[axis] * n[2] - axial) + radiation[axis];
         }
         out.magnetic = {-magnetic * n[1], magnetic * n[0], 0};
+        out.radiation_electric = radiation;
+        out.radiation_magnetic = {-far * n[1], far * n[0], 0};
         out.poynting = {out.electric[1] * out.magnetic[2] - out.electric[2] * out.magnetic[1],
                         out.electric[2] * out.magnetic[0] - out.electric[0] * out.magnetic[2],
                         out.electric[0] * out.magnetic[1] - out.electric[1] * out.magnetic[0]};

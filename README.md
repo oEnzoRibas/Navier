@@ -177,3 +177,5 @@ Run `start_viewer.cmd` from the repository root, then open http://127.0.0.1:4173
 ## Oscillating antenna example
 
 `navier_antenna3d` saves a retarded ideal electric dipole in NAVIER02: E/B, Poynting flux, potential and energy fields. See [run and visualize](docs/antenna3d.md). The viewer selects E/B/Poynting lines explicitly and automatically reduces over-budget isosurfaces.
+
+`navier_interference3d` adds two dipoles with configurable relative phase and separation, including signed interference energy. See [two-antenna example](docs/interference3d.md).

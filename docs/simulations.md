@@ -40,3 +40,5 @@ Gray usa NX NY NZ separados; demais usam lado/steps/intervalo. Os demais ainda e
 ## Antena oscilante
 
 Novo `navier_antenna3d`: dipolo ideal, solução analítica retardada de Maxwell, campos E/B/Poynting/potencial/energia em NAVIER02. Veja [equações, máscara, testes e execução](antenna3d.md).
+
+`navier_interference3d` combina dois dipolos, com fase e separação configuráveis, campos totais e termos cruzados de energia. [Execução e interpretação da interferência](interference3d.md).
