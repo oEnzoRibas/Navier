@@ -1,5 +1,5 @@
 import type {NavierDataSource} from './DataSource';
-import type {CheckpointDescriptor,Dimensions,FieldData,FieldDescriptor,MetricSeries,ReadOptions,SimulationDataset,SourceDiagnostics,StepRange} from './types';
+import type {CheckpointDescriptor,Dimensions,FieldData,FieldRegion,FieldDescriptor,MetricSeries,ReadOptions,SimulationDataset,SourceDiagnostics,StepRange} from './types';
 import {ByteLRU} from './cache/ByteLRU';
 import {fieldBytes,workerCopy} from './buffers';
 import {checkAbort} from './errors';
@@ -45,9 +45,48 @@ export class NavierCoreDataSource implements NavierDataSource {
     const derived=this.dataset.metadata.fields.find(f=>f.id===id&&f.kind==='derived');
     if(derived){const copies=(await this.getFields(step,derived.dependencies??[],options)).map(workerCopy);const result=await this.executor.run<FieldData>({kind:'derive',field:derived,inputs:copies,spacing:this.dataset.metadata.spacing,periodic:this.dataset.metadata.boundary?.includes('periodic')??false},signal,options.onProgress,copies.map(f=>f.values.buffer as ArrayBuffer));value=result.result;this.derivedMs=result.elapsedMs;}
     else{
-      const cp=this.byStep.get(step),raw=cp?.fields.find(f=>f.id===id);if(!raw)throw new Error('Core field unavailable at selected checkpoint');const field=descriptor(raw),expected=field.dimensions.reduce((a,n)=>a*n,1)*(field.scalarType==='float32'?4:8);if(!Number.isSafeInteger(expected)||expected>64*1048576)throw new Error('Core transport field exceeds 64 MiB; regional reads are future work');
+      const cp=this.byStep.get(step),raw=cp?.fields.find(f=>f.id===id);if(!raw)throw new Error('Core field unavailable at selected checkpoint');const field=descriptor(raw),expected=field.dimensions.reduce((a,n)=>a*n,1)*(field.scalarType==='float32'?4:8);if(!Number.isSafeInteger(expected)||expected>64*1048576)throw new Error('Core transport field exceeds 64 MiB; select a regional slice');
       const response=await fetch(`${this.url}/field/${step}/${encodeURIComponent(id)}`,{signal});if(!response.ok)throw new Error(await response.text());if(Number(response.headers.get('Content-Length'))!==expected)throw new Error('Invalid core field response length');
       const buffer=await response.arrayBuffer();this.bytes+=buffer.byteLength;this.reads++;options.onProgress?.({phase:'loading',bytesRead:buffer.byteLength});const result=await this.executor.run<FieldData>({kind:'decode-core',buffer,field,...(options.maxSamples!==undefined?{maxSamples:options.maxSamples}:{})},signal,options.onProgress,[buffer]);value=result.result;
+    }
+    checkAbort(signal);this.loadMs=performance.now()-started;this.cache.set(key,value,fieldBytes(value));return value;
+  }
+
+  getFieldDimensions(step:bigint,id:string):Dimensions{
+    const derived=this.dataset.metadata.fields.find(f=>f.id===id&&f.kind==='derived');
+    const raw=this.byStep.get(step)?.fields.find(f=>f.id===(derived?.dependencies?.[0]??id));
+    if(!raw)throw new Error('Field unavailable at checkpoint');return descriptor(raw).dimensions;
+  }
+  async getRegion(step:bigint,id:string,region:FieldRegion,options:ReadOptions={}):Promise<FieldData>{
+    checkAbort(options.signal);checkAbort(this.shutdown.signal);
+    const signal=options.signal?AbortSignal.any([options.signal,this.shutdown.signal]):this.shutdown.signal;
+    const key=`region:${step}:${id}:${JSON.stringify(region)}`;
+    const cached=this.cache.get(key);if(cached){this.hits++;return cached;}this.misses++;
+    const started=performance.now(),derived=this.dataset.metadata.fields.find(f=>f.id===id&&f.kind==='derived');
+    let value:FieldData;
+    if(derived){
+      if(derived.operation!=='magnitude')throw new Error('Regional curl requires a derivative halo; use a full-field view');
+      const inputs=(await Promise.all((derived.dependencies??[]).map(name=>this.getRegion(step,name,region,options)))).map(workerCopy);
+      if(inputs.some(f=>f.sourceDimensions.some((n,i)=>n!==inputs[0]?.sourceDimensions[i])))throw new Error('Regional vector components must share the same grid');
+      const task=await this.executor.run<FieldData>({kind:'derive',field:derived,inputs,spacing:this.dataset.metadata.spacing,periodic:false},signal,undefined,inputs.map(f=>f.values.buffer as ArrayBuffer));
+      value={...task.result,region};this.derivedMs=task.elapsedMs;
+    }else{
+      const raw=this.byStep.get(step)?.fields.find(f=>f.id===id);if(!raw)throw new Error('Field unavailable at checkpoint');
+      const original=descriptor(raw);
+      for(let axis=0;axis<3;axis++){
+        const start=region.origin[axis]!,count=region.count[axis]!,stride=region.stride[axis]!;
+        const end=start+(count-1)*stride;
+        if(![start,count,stride,end].every(Number.isSafeInteger)||start<0||count<1||stride<1||end>=original.dimensions[axis]!)throw new Error('Region exceeds field dimensions');
+      }
+      const expected=region.count.reduce((n,c)=>n*c,1)*(original.scalarType==='float32'?4:8);
+      if(!Number.isSafeInteger(expected)||expected>64*1048576)throw new Error('Region exceeds 64 MiB transport budget');
+      const csv=(values:readonly number[])=>values.slice(0,raw.dimensions.length).join(',');
+      const response=await fetch(`${this.url}/region/${step}/${encodeURIComponent(id)}/${csv(region.origin)}/${csv(region.count)}/${csv(region.stride)}`,{signal});
+      if(!response.ok)throw new Error(await response.text());
+      if(Number(response.headers.get('Content-Length'))!==expected)throw new Error('Invalid regional response length');
+      const buffer=await response.arrayBuffer();this.bytes+=buffer.byteLength;this.reads++;
+      const task=await this.executor.run<FieldData>({kind:'decode-core',buffer,field:{...original,dimensions:region.count}},signal,options.onProgress,[buffer]);
+      value={...task.result,field:original,sourceDimensions:original.dimensions,stride:Math.max(...region.stride),region};
     }
     checkAbort(signal);this.loadMs=performance.now()-started;this.cache.set(key,value,fieldBytes(value));return value;
   }

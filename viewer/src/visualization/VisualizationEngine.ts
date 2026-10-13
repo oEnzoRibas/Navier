@@ -63,6 +63,7 @@ export class VisualizationEngine {
   /** Uniform/camera changes never request data or rebuild worker geometry. Reuse equal-sized GPU buffers between states. */
   updateAppearance(sourceId:string,data:Pick<RenderedField,'field'|'primaryGeometry'|'glyphs'|'streamlines'>,settings:VisualizationSettings,range:readonly [number,number]):boolean{
     const previous=this.current;
+    if(previous?.field.region||data.field.region)return false;
     if(!previous||this.sourceId!==sourceId||previous.settings.mode!==settings.mode||settings.vectorOverlay||settings.streamlineOverlay||['glyphs','streamlines','isosurface'].includes(settings.mode)||previous.field.dimensions.some((n,i)=>n!==data.field.dimensions[i]))return false;
     if(this.slice&&settings.sliceAxis!==previous.settings.sliceAxis)return false;
     const changedField=previous.field!==data.field;
@@ -122,7 +123,7 @@ export class VisualizationEngine {
     const field=this.current.field,[nx,ny,nz]=field.dimensions,[width,height]=this.slice.planeDimensions,px=Math.min(width-1,Math.floor(hit.uv.x*width)),py=Math.min(height-1,Math.floor(hit.uv.y*height));
     const axis=this.slice.axis,x=axis==='x'?this.slice.location:px,y=axis==='x'?px:axis==='y'?this.slice.location:py,z=axis==='z'?this.slice.location:py,index=(z*ny+y)*nx+x;
     if(x<0||y<0||z<0||z>=nz)return;
-    this.onProbe({x:x*field.stride,y:y*field.stride,z:z*field.stride,value:field.values[index]??NaN,field:field.field.id});
+    this.onProbe({x:(field.region?.origin[0]??0)+x*(field.region?.stride[0]??field.stride),y:(field.region?.origin[1]??0)+y*(field.region?.stride[1]??field.stride),z:(field.region?.origin[2]??0)+z*(field.region?.stride[2]??field.stride),value:field.values[index]??NaN,field:field.field.id});
   };
   clearFrame():void{this.clearContent();this.slice=null;this.dirty=true;this.renderNow();}
   private clearContent():void{

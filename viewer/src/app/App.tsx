@@ -32,6 +32,7 @@ export function App(){
     const m=session.source.dataset.metadata,field=m.fields.find(f=>f.operation==='magnitude')??m.fields[0];
     setFieldId(field?.id??'');setSettings(s=>({...s,mode:m.dimensions[2]>1?'cloud':'scalar',vectorOverlay:false,streamlineOverlay:false,vectorGroup:'',colors:{...s.colors,scaleMode:'auto',symmetric:false,logarithmic:false,thresholdLow:-Infinity,thresholdHigh:Infinity}}));
   };
+  useEffect(()=>{setVisited([])},[settings.mode,settings.sliceAxis,settings.slicePosition]);
   async function addSource(source:NavierDataSource){
     const checkpoints=await source.listCheckpoints();if(checkpoints.length===0){await source.close();throw new Error('O arquivo não contém checkpoints');}
     if(allSessions.current.length>=8){await source.close();throw new Error('Feche um dataset antes de abrir outro (limite de 8 workers de dados)');}

@@ -9,8 +9,9 @@ import {preparationKey} from '../visualization/preparationKey';
 import type {ScientificGeometry,GeometryOptions} from '../analysis/geometry';
 import {isAbort,errorMessage} from '../data/errors';
 import {fieldBytes} from '../data/buffers';
+import {planSampling} from '../parsers/navierFile';
 import {effectiveRange} from '../visualization/colormap/colormaps';
-export interface FrameInfo {step:bigint;time:number;stats:FieldStatistics;dimensions:readonly number[];stride:number;range:readonly [number,number];uploadMs:number;surfaceDimensions?:readonly number[];surfaceLOD?:number}
+export interface FrameInfo {step:bigint;time:number;stats:FieldStatistics;dimensions:readonly number[];stride:number;range:readonly [number,number];uploadMs:number;surfaceDimensions?:readonly number[];surfaceLOD?:number;regional?:boolean}
 interface Prepared {field:RenderFieldData;primaryGeometry?:ScientificGeometry;glyphs?:ScientificGeometry;streamlines?:ScientificGeometry}
 interface Props {source:NavierDataSource;checkpoint:CheckpointDescriptor;next?:CheckpointDescriptor;fieldId:string;settings:VisualizationSettings;onInfo?:(info:FrameInfo)=>void;onStatus?:(loading:boolean)=>void;exportToken:number;cameraToken:number;performanceMode:boolean}
 export function VisualizationViewport({source,checkpoint,next,fieldId,settings,onInfo,onStatus,exportToken,cameraToken,performanceMode}:Props){
@@ -31,7 +32,18 @@ export function VisualizationViewport({source,checkpoint,next,fieldId,settings,o
       const dimensions=source.dataset.metadata.dimensions,s=live.current.settings;
       let maxSamples=s.quality;
       if(dimensions[2]>1&&s.mode==='volume'){const stride=Math.max(1,Math.ceil(Math.max(...dimensions)/Math.min(renderer.limits.texture3d,256)));maxSamples=Math.min(maxSamples,dimensions.reduce((a,n)=>a*Math.ceil(n/stride),1));}
-      const science=await source.getField(step,fieldId,{signal,maxSamples}),field=await worker.prepare(science,signal);
+      const descriptor=source.dataset.metadata.fields.find(f=>f.id===fieldId);
+      const regional=!!source.getRegion&&s.mode==='slice'&&!s.vectorOverlay&&!s.streamlineOverlay&&descriptor?.operation!=='curl';
+      let science;
+      if(regional&&source.getRegion){
+        const full=source.getFieldDimensions?.(step,fieldId)??descriptor?.dimensions??dimensions,axis=['x','y','z'].indexOf(s.sliceAxis);
+        const plane=[...full];plane[axis]=1;
+        const plan=planSampling(plane as unknown as readonly [number,number,number],maxSamples);
+        const origin=[0,0,0];origin[axis]=Math.round(s.slicePosition*(full[axis]!-1));
+        const stride=[plan.stride,plan.stride,plan.stride];stride[axis]=1;
+        science=await source.getRegion(step,fieldId,{origin:origin as unknown as readonly [number,number,number],count:plan.dimensions,stride:stride as unknown as readonly [number,number,number]},{signal});
+      }else science=await source.getField(step,fieldId,{signal,maxSamples});
+      const field=await worker.prepare(science,signal);
       if(!field.stats.finiteCount)throw new Error('No finite values in the selected field');
       const availableGroups=new Set(source.dataset.metadata.fields.map(f=>f.vectorGroup).filter(Boolean));
       const group=availableGroups.has(s.vectorGroup)?s.vectorGroup:field.field.vectorGroup??source.dataset.metadata.fields.find(f=>f.kind==='vector-component')?.vectorGroup;
@@ -62,7 +74,7 @@ export function VisualizationViewport({source,checkpoint,next,fieldId,settings,o
       const range=effectiveRange(raw[0],raw[1],settings.colors);
       if(!renderer.updateAppearance(source.dataset.id,frame,settings,range))renderer.show(source.dataset.id,{...frame,settings,range,spacing:source.dataset.metadata.spacing});
       setError('');setDisplayed(current.checkpoint);busy.current=false;live.current.onStatus?.(false);
-      live.current.onInfo?.({step:current.checkpoint.step,time:current.checkpoint.time,stats:field.stats,dimensions:field.dimensions,stride:field.stride,range,uploadMs:renderer.diagnostics().uploadMs,...(frame.primaryGeometry?.sampleDimensions?{surfaceDimensions:frame.primaryGeometry.sampleDimensions,surfaceLOD:frame.primaryGeometry.lodLevels??0}:{})});
+      live.current.onInfo?.({step:current.checkpoint.step,time:current.checkpoint.time,stats:field.stats,dimensions:field.dimensions,stride:field.stride,range,uploadMs:renderer.diagnostics().uploadMs,regional:!!field.region,...(frame.primaryGeometry?.sampleDimensions?{surfaceDimensions:frame.primaryGeometry.sampleDimensions,surfaceLOD:frame.primaryGeometry.lodLevels??0}:{})});
     }catch(e){setError(errorMessage(e));busy.current=false;live.current.onStatus?.(false);}
   },[revision,key,settings,source,fieldId]);
   useEffect(()=>{if(!exportToken||!engine.current||busy.current||error||!displayed)return;const link=document.createElement('a');link.download=`navier-${fieldId.replaceAll(':','-')}-step-${displayed.step}.png`;link.href=engine.current.exportPNG();link.click();},[exportToken]);
