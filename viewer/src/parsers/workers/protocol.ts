@@ -6,6 +6,7 @@ export type WorkerTask =
  | {kind:'scan';spec:ReaderSpec;expectedCount:number}
  | {kind:'read';spec:ReaderSpec;entry:DirectoryEntry;field:FieldDescriptor;index:number;maxSamples?:number}
  | {kind:'derive';field:FieldDescriptor;inputs:readonly FieldData[];spacing:Dimensions;periodic:boolean}
+ | {kind:'decode-core';buffer:ArrayBuffer;field:FieldDescriptor;maxSamples?:number}
  | {kind:'prepare';field:FieldData}
  | {kind:'geometry';field:FieldData;components:readonly FieldData[];options:GeometryOptions};
 export type WorkerResult = DirectoryEntry[] | FieldData | ScientificGeometry;

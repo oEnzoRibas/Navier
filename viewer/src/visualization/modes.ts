@@ -1,7 +1,8 @@
-export type RenderMode='scalar'|'slice'|'cloud'|'volume'|'glyphs'|'streamlines'|'wavefront'|'sparse';
+export type RenderMode='scalar'|'slice'|'cloud'|'volume'|'glyphs'|'streamlines'|'wavefront'|'sparse'|'isosurface';
 export interface ModeDescriptor {id:RenderMode;label:string;dimensions:'2d'|'3d'|'any';requiresVector?:boolean}
 export const modes:readonly ModeDescriptor[]=[
   {id:'scalar',label:'Campo escalar 2D',dimensions:'2d'},
+  {id:'isosurface',label:'Isosuperfície · tetraedros',dimensions:'3d'},
   {id:'slice',label:'Corte X / Y / Z',dimensions:'3d'},
   {id:'cloud',label:'Nuvem de pontos',dimensions:'3d'},
   {id:'volume',label:'Volume · ray marching',dimensions:'3d'},

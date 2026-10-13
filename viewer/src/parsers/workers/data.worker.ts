@@ -10,7 +10,7 @@ scope.onmessage=(event:MessageEvent<WorkerEnvelope|{cancel:number}>)=>{
     const transfers:Transferable[]=[];
     if(!Array.isArray(response.result)){
       if('values' in response.result){transfers.push(response.result.values.buffer as ArrayBuffer);if(response.result.renderValues&&response.result.renderValues.buffer!==response.result.values.buffer)transfers.push(response.result.renderValues.buffer as ArrayBuffer);}
-      else transfers.push(response.result.positions.buffer as ArrayBuffer,response.result.scalars.buffer as ArrayBuffer);
+      else {transfers.push(response.result.positions.buffer as ArrayBuffer,response.result.scalars.buffer as ArrayBuffer);if(response.result.normals)transfers.push(response.result.normals.buffer as ArrayBuffer);}
     }
     scope.postMessage({id,...response} satisfies WorkerResponse,transfers);
   }).catch((error:unknown)=>scope.postMessage({id,error:error instanceof Error?error.message:String(error),name:error instanceof Error?error.name:'Error'} satisfies WorkerResponse)).finally(()=>controllers.delete(id));

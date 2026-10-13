@@ -1,6 +1,7 @@
+import {marchingTetrahedra} from './isosurface';
 import type {FieldData} from '../data/types';
-export interface GeometryOptions {kind:'glyphs'|'streamlines'|'cloud';seeds:number;length:number;stepSize:number;scale:number;maxPoints:number;thresholdLow:number;thresholdHigh:number;absolute:boolean}
-export interface ScientificGeometry {positions:Float32Array;scalars:Float32Array}
+export interface GeometryOptions {kind:'glyphs'|'streamlines'|'cloud'|'isosurface';isoValue?:number;seeds:number;length:number;stepSize:number;scale:number;maxPoints:number;thresholdLow:number;thresholdHigh:number;absolute:boolean}
+export interface ScientificGeometry {positions:Float32Array;scalars:Float32Array;normals?:Float32Array}
 function interpolate(field:FieldData,x:number,y:number,z:number):number{
   const [nx,ny,nz]=field.dimensions;x=Math.max(0,Math.min(nx-1,x));y=Math.max(0,Math.min(ny-1,y));z=Math.max(0,Math.min(nz-1,z));
   const ix=Math.floor(x),iy=Math.floor(y),iz=Math.floor(z),tx=x-ix,ty=y-iy,tz=z-iz;let sum=0;
@@ -8,6 +9,7 @@ function interpolate(field:FieldData,x:number,y:number,z:number):number{
   return sum;
 }
 export function buildGeometry(scalar:FieldData,components:readonly FieldData[],o:GeometryOptions):ScientificGeometry {
+  if(o.kind==='isosurface')return marchingTetrahedra(scalar,o.isoValue??.01);
   const dims=scalar.dimensions, positions:number[]=[],scalars:number[]=[];
   const point=(x:number,y:number,z:number)=>[dims[0]>1?x/(dims[0]-1)-.5:0,dims[1]>1?y/(dims[1]-1)-.5:0,dims[2]>1?z/(dims[2]-1)-.5:0];
   const add=(p:number[],value:number)=>{positions.push(p[0]??0,p[1]??0,p[2]??0);scalars.push(value);};
