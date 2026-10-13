@@ -2,7 +2,7 @@
 
 `src/data/DataSource.ts` expõe dataset, getDatasetMetadata, listCheckpoints(range), getCheckpoint(step), getField, getFields, getMetricSeries opcional, diagnostics, setCacheLimit e close. Steps são bigint; JSON externo deve transportar uint64 como string. FieldDescriptor descreve id, nome, unidade opcional, dimensões, precisão, grupo/componente e dependências de derivados.
 
-NavierCoreDataSource implementa esse contrato com a CLI C++ real via proxy local Vite. Solicita descritores paginados e o campo selecionado, sem interpretar páginas do índice no browser. NAVIER02 oferece f32/f64 e formas por checkpoint; viewer aceita rank 1–3. Métricas salvas vêm dos diretórios. O limite de timeline é aproximadamente 64 MiB; paginação totalmente por cursor e consultas regionais ainda requerem extensão. Detalhes em [integração](../../docs/viewer.md).
+NavierCoreDataSource implementa esse contrato com a CLI C++ real via proxy local Vite. Solicita descritores paginados e o campo selecionado, sem interpretar páginas do índice no browser. NAVIER02 oferece f32/f64 e formas por checkpoint; viewer aceita rank 1–3. Métricas salvas vêm dos diretórios. O limite de timeline é aproximadamente 64 MiB; paginação totalmente por cursor ainda é futura. getRegion e getFieldDimensions são extensões opcionais já implementadas pelo adapter do core. Detalhes em [integração](../../docs/viewer.md).
 
 ## Compatibilidade NAVIER01
 
@@ -15,3 +15,5 @@ Esse layout é suportado pelo adapter legado. NAVIER02 usa NavierCoreDataSource.
 LRU conta os bytes de todos os buffers retidos, científicos e render, sem contar duas vezes quando compartilham buffer. Chave = step/field/stride. A UI divide um orçamento global entre os datasets abertos; oversized não entra no cache. Array científico do cache nunca é transferido para um worker (seria destacado): análise transfere uma cópia própria. Workers transferem os resultados de volta. Consumidores tratam buffers como read-only. Não há deduplicação de pedidos concorrentes no momento.
 
 Prefetch prepara o campo e a geometria do próximo checkpoint, mantendo no máximo atual/próximo com orçamento de 64 MiB por viewport; é promovido ao avançar, e cancelado somente quando fica obsoleto. Dependências vetoriais são buscadas somente quando requeridas por derivado/overlay. Cache não é limite do processo inteiro: campo corrente, comparação, inputs, cópias, buffers temporários e GPU adicionam memória. IO de tarefas abortadas pode não aparecer no contador concluído.
+
+Leitura regional e limites de integridade/IO: [regional-io](../../docs/regional-io.md). Descritores por checkpoint resolvem mudanças de forma. Regiões preservam origin/count/stride e sourceDimensions no resultado; buffers permanecem read-only.

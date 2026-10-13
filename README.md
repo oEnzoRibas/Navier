@@ -12,9 +12,9 @@ Navier is an educational foundation, with no claim of superiority over HDF5, Net
 
 Two compatible paths: legacy NAVIER01 (`CheckpointStore`) and field-aware NAVIER02 (`DatasetStore`). NAVIER02 implements float32/float64 fields, per-checkpoint shapes/units/metrics, bounded selective reads, CRCs, persistent paged temporal B+ Tree, LRU buffer pool and explicit tail recovery. The viewer uses the real C++ core through a local CLI transport; 3D rendering includes real marching-tetrahedra isosurfaces.
 
-New Wave3D and Gray–Scott 3D producers save NAVIER02. Other producers retain NAVIER01. A real 10 GiB file was generated and fully checksum-validated. See [architecture](docs/architecture.md), [results and limitations](docs/benchmarking.md), [simulation commands](docs/simulations.md), [development](docs/development.md) and [roadmap](docs/roadmap.md).
+Wave3D v2, Gray–Scott 3D, the dipole antenna and two-antenna interference producers save NAVIER02. Earlier producers retain NAVIER01. A real 10 GiB file was generated and fully checksum-validated. See [architecture](docs/architecture.md), [results and limitations](docs/benchmarking.md), [simulation commands](docs/simulations.md), [development](docs/development.md) and [roadmap](docs/roadmap.md).
 
-Regions/chunks, compression, persistent metric indexes, exact solver restart and power-loss durability are pending. No comparison establishing superiority over mature scientific storage libraries was performed.
+Verified regional reads are available through `DatasetStore::load_region` and the viewer slice modes; see [regional IO](docs/regional-io.md). Chunked/compressed payloads, spatial indexes, persistent metric indexes, exact solver restart and power-loss durability are pending. No comparison establishing superiority over mature scientific storage libraries was performed.
 
 ## Build and test
 
