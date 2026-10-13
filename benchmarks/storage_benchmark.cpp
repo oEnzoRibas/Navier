@@ -23,4 +23,3 @@ int main(int argc,char** argv){try{
     std::cout<<std::setprecision(12)<<"dataset_bytes,checkpoints,index_bytes,open_ms,open_records_scanned,open_dataset_bytes_read,write_ms,write_MiB_s,exact_descriptor_ms,field_read_ms,range_1000_ms,warm_descriptor_us,buffer_hits,buffer_misses,buffer_evictions,buffer_cached,field_reads\n"<<bytes<<','<<store.size()<<','<<index_bytes<<','<<open_ms<<','<<opened.records_scanned<<','<<opened.bytes_read<<','<<write_ms<<','<<(static_cast<double>(bytes)/1048576/(write_ms/1000))<<','<<exact_ms<<','<<field_ms<<','<<range_ms<<','<<warm_us<<','<<stats.buffer.hits<<','<<stats.buffer.misses<<','<<stats.buffer.evictions<<','<<stats.buffer.cached<<','<<stats.field_reads<<'\n';
     if(checkpoint.step!=selected||range.empty())throw std::runtime_error("Benchmark validation failed");(void)field;return 0;
 }catch(const std::exception& error){std::cerr<<"Storage benchmark: "<<error.what()<<'\n';return 1;}}
-
