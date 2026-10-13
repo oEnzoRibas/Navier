@@ -1,4 +1,5 @@
 #include <navier/storage/dataset_store.hpp>
+#include "field_region.hpp"
 #include <navier/index/persistent_bplus_tree.hpp>
 #include <navier/format/file.hpp>
 #include <algorithm>
@@ -115,4 +116,19 @@ void DatasetStore::validate(bool full){
 }
 
 void DatasetStore::repair_tail(){auto& s=*impl_;std::lock_guard lock(s.mutex);s.usable();if(s.stats.recovered_tail)s.file->truncate(s.h.end);s.persist_super();s.stats.recovered_tail=false;}
+
+    Field DatasetStore::load_region(std::uint64_t step, std::string_view name, const FieldRegion& region)
+    {
+        auto& s = *impl_;
+        std::lock_guard lock(s.mutex);
+        const auto record = s.locate(step);
+        const auto found = std::find_if(record.fields.begin(), record.fields.end(),
+                                       [&](const auto& field) { return field.descriptor.name == name; });
+        if (found == record.fields.end()) throw std::out_of_range("Field not found");
+        auto directory = s.path;
+        directory += ".nvb";
+        return detail::read_region(*s.file, found->descriptor, region,
+                                   format::checked_add(record.offset, found->offset), found->crc,
+                                   s.options.max_field_bytes, directory, s.h.identity, record.descriptor.generation);
+    }
 } // namespace navier::storage

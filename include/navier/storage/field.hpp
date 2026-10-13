@@ -25,6 +25,9 @@ struct FieldDescriptor {
 };
 struct FieldView {FieldDescriptor descriptor;std::variant<std::span<const float>,std::span<const double>> values;};
 struct Field {FieldDescriptor descriptor;std::variant<std::vector<float>,std::vector<double>> values;};
+// Coordinates in original field order (X fastest). count is the output shape;
+// each next sample advances stride cells. All vectors must match the field rank.
+struct FieldRegion {std::vector<std::uint64_t> origin,count,stride;};
 struct Metric {std::string name;double value;std::string unit;bool operator==(const Metric&)const=default;};
 struct CheckpointDescriptor {
     std::uint64_t step;double time;std::uint64_t generation;

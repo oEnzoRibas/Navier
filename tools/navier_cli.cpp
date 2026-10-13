@@ -14,7 +14,7 @@ void usage() {
               << "  navier info <file.data>\n"
               << "  navier get <file.data> <step>\n"
               << "  navier range <file.data> <begin-step> <end-step>\n\n"
-              << "NAVIER02 commands:\n  navier list <file.data>\n  navier fields <file.data> <step>\n  navier extract <file.data> <step> <field> [output.raw]\n  navier validate <file.data> [quick|full]\n  navier repair-tail <file.data>\n  navier query <file.data> <metric> <min> <max>\nJSON transport: info-json, checkpoint-json, list-json BEGIN END LIMIT.\nRange bounds are inclusive.\n";
+              << "NAVIER02 commands:\n  navier list <file.data>\n  navier fields <file.data> <step>\n  navier extract <file.data> <step> <field> [output.raw]\n  navier validate <file.data> [quick|full]\n  navier repair-tail <file.data>\n  navier extract-region <file.data> <step> <field> <origin-csv> <count-csv> <stride-csv> [output.raw]\n  navier region-info-json <file.data> <step> <field> <origin-csv> <count-csv> <stride-csv>\n  navier query <file.data> <metric> <min> <max>\nJSON transport: info-json, checkpoint-json, list-json BEGIN END LIMIT.\nRange bounds are inclusive.\n";
 }
 std::uint64_t parse_step(std::string_view text) {
     std::uint64_t value = 0;

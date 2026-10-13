@@ -12,13 +12,36 @@
 #endif
 namespace navier::tools {
 inline std::uint64_t unsigned_number(std::string_view text){std::uint64_t value=0;const auto [end,error]=std::from_chars(text.data(),text.data()+text.size(),value);if(error!=std::errc{}||end!=text.data()+text.size())throw std::invalid_argument("Expected uint64 integer");return value;}
+inline std::vector<std::uint64_t> region_numbers(std::string_view text){
+    if(text.empty()||text.size()>255)throw std::invalid_argument("Invalid region coordinates");
+    std::vector<std::uint64_t> result;
+    for(;;){const auto comma=text.find(',');result.push_back(unsigned_number(text.substr(0,comma)));if(result.size()>8)throw std::invalid_argument("Region rank exceeds 8");if(comma==std::string_view::npos)break;text.remove_prefix(comma+1);}
+    return result;
+}
 inline void json_string(std::ostream& out,std::string_view value){out<<'"';for(unsigned char c:value){switch(c){case '"':out<<"\\\"";break;case '\\':out<<"\\\\";break;case '\n':out<<"\\n";break;case '\r':out<<"\\r";break;case '\t':out<<"\\t";break;default:if(c<32){constexpr char hex[]="0123456789abcdef";out<<"\\u00"<<hex[c>>4]<<hex[c&15];}else out<<static_cast<char>(c);}}out<<'"';}
 inline void field_json(std::ostream& out,const storage::FieldDescriptor& field){out<<"{\"id\":";json_string(out,field.name);out<<",\"scalarType\":\""<<(field.scalar_type==storage::ScalarType::float32?"float32":"float64")<<"\",\"dimensions\":[";for(std::size_t i=0;i<field.dimensions.size();++i){if(i)out<<',';out<<field.dimensions[i];}out<<"],\"unit\":";json_string(out,field.unit);out<<'}';}
 inline void checkpoint_json(std::ostream& out,const storage::CheckpointDescriptor& cp){out<<"{\"step\":\""<<cp.step<<"\",\"time\":"<<cp.time<<",\"generation\":\""<<cp.generation<<"\",\"kind\":\""<<(cp.kind==storage::CheckpointKind::analysis?"analysis":"restart")<<"\",\"fields\":[";for(std::size_t i=0;i<cp.fields.size();++i){if(i)out<<',';field_json(out,cp.fields[i]);}out<<"],\"metrics\":[";for(std::size_t i=0;i<cp.metrics.size();++i){if(i)out<<',';out<<"{\"name\":";json_string(out,cp.metrics[i].name);out<<",\"value\":"<<cp.metrics[i].value<<",\"unit\":";json_string(out,cp.metrics[i].unit);out<<'}';}out<<"]}";}
 inline void raw_field(std::ostream& out,const storage::Field& field){std::array<std::byte,65536> buffer{};std::visit([&](const auto& values){using T=typename std::decay_t<decltype(values)>::value_type;using Bits=std::conditional_t<sizeof(T)==4,std::uint32_t,std::uint64_t>;for(std::size_t base=0;base<values.size();){const auto count=std::min(values.size()-base,buffer.size()/sizeof(T));for(std::size_t i=0;i<count;++i)format::put(buffer,i*sizeof(T),std::bit_cast<Bits>(values[base+i]),sizeof(T));out.write(reinterpret_cast<const char*>(buffer.data()),static_cast<std::streamsize>(count*sizeof(T)));if(!out)throw std::runtime_error("Field export failed");base+=count;}},field.values);}
 inline bool is_v2(const std::filesystem::path& path){std::ifstream in(path,std::ios::binary);std::array<char,8> magic{};in.read(magic.data(),8);return in&&std::string_view(magic.data(),8)=="NAVIER02";}
 inline int dataset_cli(int argc,char** argv){
-    const std::string_view command=argv[1];const std::filesystem::path path(argv[2]);storage::DatasetStore store(path);std::cout<<std::setprecision(17);
+    const std::string_view command=argv[1];const std::filesystem::path path(argv[2]);storage::DatasetStore store(path,{.max_field_bytes=(command=="extract-region"||command=="region-info-json")?64ULL*1024*1024:256ULL*1024*1024});std::cout<<std::setprecision(17);
+    if((command=="extract-region"&&(argc==8||argc==9))||(command=="region-info-json"&&argc==8)){
+        const auto before=store.statistics().bytes_read;
+        const storage::FieldRegion region{region_numbers(argv[5]),region_numbers(argv[6]),region_numbers(argv[7])};
+        const auto field=store.load_region(unsigned_number(argv[3]),argv[4],region);
+        if(command=="region-info-json"){
+            std::cout<<"{\"field\":";field_json(std::cout,field.descriptor);
+            std::cout<<",\"resultBytes\":"<<field.descriptor.byte_size()<<",\"datasetBytesRead\":"<<store.statistics().bytes_read-before
+                     <<",\"blockBytes\":65536,\"requestedBlocksVerified\":true}";
+        }else if(argc==9){std::ofstream out(argv[8],std::ios::binary);if(!out)throw std::runtime_error("Cannot open region output");raw_field(out,field);}
+        else{
+#ifdef _WIN32
+            if(_setmode(_fileno(stdout),_O_BINARY)==-1)throw std::runtime_error("Cannot set binary stdout");
+#endif
+            raw_field(std::cout,field);
+        }
+        return 0;
+    }
     if((command=="info"||command=="info-json")&&argc==3){const auto stats=store.statistics();const auto [first,last]=store.step_bounds();if(command=="info-json"){std::cout<<"{\"format\":\"NAVIER02\",\"count\":"<<store.size()<<",\"bytes\":"<<std::filesystem::file_size(path)<<",\"firstStep\":\""<<first<<"\",\"lastStep\":\""<<last<<"\",\"indexPages\":"<<stats.index_pages<<",\"pageSize\":"<<storage::page_size<<",\"rootPage\":\""<<stats.root_page<<"\",\"recordsScanned\":"<<stats.records_scanned<<",\"bytesRead\":"<<stats.bytes_read<<",\"recoveredTail\":"<<(stats.recovered_tail?"true":"false")<<",\"metadataJson\":";json_string(std::cout,store.metadata());std::cout<<'}';}else std::cout<<"NAVIER02\nFile bytes: "<<std::filesystem::file_size(path)<<"\nCheckpoints: "<<store.size()<<"\nSteps: "<<first<<".."<<last<<"\nIndex: persistent B+ Tree, "<<stats.index_pages<<" pages of 4096 bytes\nRoot: "<<stats.root_page<<"\nOpening scanned records: "<<stats.records_scanned<<"\nRecovered tail: "<<stats.recovered_tail<<'\n';return 0;}
     if(command=="validate"&&(argc==3||argc==4)){const bool full=argc==4&&std::string_view(argv[3])=="full";if(argc==4&&!full&&std::string_view(argv[3])!="quick")throw std::invalid_argument("Validation mode must be quick or full");store.validate(full);std::cout<<"Valid NAVIER02 "<<(full?"full (all committed historical field checksums)":"quick (live metadata and index)")<<"\n";return 0;}
     if(command=="repair-tail"&&argc==3){store.repair_tail();std::cout<<"Incomplete tail repaired if present\n";return 0;}

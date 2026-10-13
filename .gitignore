@@ -86,3 +86,4 @@ viewer/.vite/
 # Rebuildable NAVIER02 temporal indexes
 *.nvi
 *.nvi.rebuild
+*.nvb/

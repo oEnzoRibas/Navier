@@ -15,6 +15,9 @@ public:
     void save(std::uint64_t step,double time,std::span<const FieldView> fields,std::span<const Metric> metrics={},CheckpointKind kind=CheckpointKind::analysis);
     [[nodiscard]] CheckpointDescriptor get_checkpoint(std::uint64_t step);
     [[nodiscard]] Field load_field(std::uint64_t step,std::string_view name);
+    // Verified 64 KiB block reads. First access builds a derived checksum cache
+    // by streaming/validating the entire field; subsequent accesses are regional.
+    [[nodiscard]] Field load_region(std::uint64_t step,std::string_view name,const FieldRegion& region);
     [[nodiscard]] ScientificCheckpoint load(std::uint64_t step);
     [[nodiscard]] std::vector<CheckpointDescriptor> range_steps(std::uint64_t begin,std::uint64_t end,std::size_t limit=1000);
     [[nodiscard]] std::uint64_t size()const;
