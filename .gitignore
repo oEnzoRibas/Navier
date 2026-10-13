@@ -82,3 +82,7 @@ viewer/node_modules/
 viewer/dist/
 viewer/*.tsbuildinfo
 viewer/.vite/
+
+# Rebuildable NAVIER02 temporal indexes
+*.nvi
+*.nvi.rebuild

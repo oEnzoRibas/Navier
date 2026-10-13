@@ -1,4 +1,5 @@
 #include <navier/navier.hpp>
+#include "dataset_cli.hpp"
 #include <algorithm>
 #include <charconv>
 #include <iomanip>
@@ -13,7 +14,7 @@ void usage() {
               << "  navier info <file.data>\n"
               << "  navier get <file.data> <step>\n"
               << "  navier range <file.data> <begin-step> <end-step>\n\n"
-              << "Range bounds are inclusive. Commands inspect existing files.\n";
+              << "NAVIER02 commands:\n  navier list <file.data>\n  navier fields <file.data> <step>\n  navier extract <file.data> <step> <field> [output.raw]\n  navier validate <file.data> [quick|full]\n  navier repair-tail <file.data>\n  navier query <file.data> <metric> <min> <max>\nJSON transport: info-json, checkpoint-json, list-json BEGIN END LIMIT.\nRange bounds are inclusive.\n";
 }
 std::uint64_t parse_step(std::string_view text) {
     std::uint64_t value = 0;
@@ -32,6 +33,7 @@ void print_metadata(navier::storage::CheckpointStore& store, const navier::stora
 int main(int argc, char** argv) {
     try {
         if (argc == 1 || (argc == 2 && std::string_view(argv[1]) == "--help")) { usage(); return 0; }
+        if(argc>=3 && navier::tools::is_v2(argv[2]))return navier::tools::dataset_cli(argc,argv);
         const std::string_view command = argv[1];
         if (!((command == "info" && argc == 3) || (command == "get" && argc == 4) ||
               (command == "range" && argc == 5))) {

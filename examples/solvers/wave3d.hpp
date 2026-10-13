@@ -30,15 +30,18 @@ public:
     explicit Wave3D(
         std::size_t side,
         double c = 1.0,
-        double dt = 0.45
+        double dt = 0.45,
+        double source_amplitude = 1.0
     )
-        : n_(side),
+        : n_(checked_side(side)),
           c_(c),
           dt_(dt),
+          source_amplitude_(source_amplitude),
           prev_(n_ * n_ * n_, 0.0),
           curr_(n_ * n_ * n_, 0.0),
           next_(n_ * n_ * n_, 0.0) {
 
+        if (!std::isfinite(source_amplitude_)) throw std::invalid_argument("Wave source amplitude must be finite");
         if (side < 16 || side > 128) {
             throw std::invalid_argument(
                 "Wave3D grid must be in [16, 128]"
@@ -287,6 +290,7 @@ public:
     }
 
 private:
+    static std::size_t checked_side(std::size_t side) { if(side<16||side>128)throw std::invalid_argument("Wave3D grid must be in [16, 128]"); return side; }
     [[nodiscard]]
     std::size_t index(
         std::size_t x,
@@ -323,7 +327,7 @@ private:
          * Transient Gaussian-modulated sinusoidal pulse.
          *
          * It acts near the beginning of the simulation
-         * and naturally leaves the domain afterwards.
+         * then turns off; Dirichlet faces reflect the wave.
          */
 
         const double t =
@@ -338,7 +342,7 @@ private:
             std::sin(0.55 * t);
 
         const double pulse =
-            envelope * carrier;
+            source_amplitude_ * envelope * carrier;
 
         const auto cx = n_ / 2;
         const auto cy = n_ / 2;
@@ -373,6 +377,7 @@ private:
     std::size_t n_;
     double c_;
     double dt_;
+    double source_amplitude_;
     std::uint64_t step_ = 0;
 
     std::vector<double> prev_;

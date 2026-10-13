@@ -1,5 +1,7 @@
 #include <navier/storage/checkpoint_store.hpp>
 #include <array>
+#include <navier/format/binary.hpp>
+#include <algorithm>
 #include <bit>
 #include <limits>
 #include <stdexcept>
@@ -86,7 +88,14 @@ void CheckpointStore::save(std::uint64_t step, double time, std::span<const doub
     write_u64(file_, step);
     write_u64(file_, std::bit_cast<std::uint64_t>(time));
     write_u64(file_, static_cast<std::uint64_t>(values.size()));
-    for (const auto value : values) write_u64(file_, std::bit_cast<std::uint64_t>(value));
+    std::array<std::byte, 65536> buffer{};
+    for (std::size_t base=0;base<values.size();) {
+        const auto count=std::min(values.size()-base,buffer.size()/8);
+        for(std::size_t i=0;i<count;++i) format::put(buffer,i*8,std::bit_cast<std::uint64_t>(values[base+i]));
+        file_.write(reinterpret_cast<const char*>(buffer.data()),static_cast<std::streamsize>(count*8));
+        if(!file_)throw std::runtime_error("Cannot write checkpoint payload block");
+        base+=count;
+    }
     file_.flush();
     if (!file_) throw std::runtime_error("Cannot flush checkpoint file");
     const auto offset = end_offset_;
@@ -99,7 +108,7 @@ std::optional<CheckpointLocation> CheckpointStore::location(std::uint64_t step) 
     return std::nullopt;
 }
 
-Checkpoint CheckpointStore::load(std::uint64_t step) {
+Checkpoint CheckpointStore::load(std::uint64_t step, std::uint64_t max_bytes) {
     const auto where = location(step);
     if (!where) throw std::out_of_range("Checkpoint step not found");
     seek_read(where->offset);
@@ -109,10 +118,17 @@ Checkpoint CheckpointStore::load(std::uint64_t step) {
     const auto count = read_u64(file_);
     if (result.metadata.step != step || where->size < header_size || count != (where->size - header_size) / 8)
         throw std::runtime_error("Checkpoint header changed since indexing");
+    if (count > max_bytes / 8) throw std::length_error("Legacy checkpoint exceeds memory budget; use NAVIER02 field-selective storage");
     if (count > result.values.max_size()) throw std::length_error("Checkpoint payload exceeds vector capacity");
-    result.values.reserve(static_cast<std::size_t>(count));
-    for (std::uint64_t i = 0; i < count; ++i)
-        result.values.push_back(std::bit_cast<double>(read_u64(file_)));
+    result.values.resize(static_cast<std::size_t>(count));
+    std::array<std::byte,65536> buffer{};
+    for(std::size_t base=0;base<result.values.size();) {
+        const auto n=std::min(result.values.size()-base,buffer.size()/8);
+        file_.read(reinterpret_cast<char*>(buffer.data()),static_cast<std::streamsize>(n*8));
+        if(!file_)throw std::runtime_error("Short checkpoint payload block");
+        for(std::size_t i=0;i<n;++i)result.values[base+i]=std::bit_cast<double>(format::get(buffer,i*8));
+        base+=n;
+    }
     return result;
 }
 

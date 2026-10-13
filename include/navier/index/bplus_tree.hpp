@@ -57,6 +57,8 @@ public:
         return inserted;
     }
 
+    void clear() { auto empty_root = std::make_unique<Node>(true); root_ = std::move(empty_root); size_ = 0; }
+
     // Returned pointers are invalidated by subsequent insertions.
     [[nodiscard]] const Value* find(const Key& key) const {
         const Node* leaf = find_leaf(key);

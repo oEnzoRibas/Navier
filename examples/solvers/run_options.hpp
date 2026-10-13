@@ -9,7 +9,7 @@
 namespace navier::examples {
 struct RunOptions {
     std::filesystem::path path;
-    std::size_t side = 2048;
+    std::size_t side = 64;
     std::uint64_t steps = 400;
     std::uint64_t interval = 20;
 };

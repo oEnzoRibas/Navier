@@ -14,7 +14,7 @@ public:
     CheckpointStore(const CheckpointStore&) = delete;
     CheckpointStore& operator=(const CheckpointStore&) = delete;
     void save(std::uint64_t step, double time, std::span<const double> values);
-    [[nodiscard]] Checkpoint load(std::uint64_t step);
+    [[nodiscard]] Checkpoint load(std::uint64_t step, std::uint64_t max_bytes = 256ULL * 1024 * 1024);
     [[nodiscard]] std::vector<CheckpointMetadata> range(std::uint64_t begin, std::uint64_t end);
     [[nodiscard]] std::optional<CheckpointLocation> location(std::uint64_t step) const;
     [[nodiscard]] std::size_t size() const noexcept { return index_.size(); }
