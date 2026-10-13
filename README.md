@@ -173,3 +173,7 @@ MIT. See [LICENSE](LICENSE).
 ## Scientific viewer (React/WebGL2)
 
 Run `start_viewer.cmd` from the repository root, then open http://127.0.0.1:4173 and select **Exemplos locais** or a `.data`/`.data.json` pair. See [viewer instructions](viewer/README.md) for incremental reads, GPU modes and current limitations. `navier_viewer.exe` remains the legacy offline HTML exporter; its source now lives under `viewer/legacy/`.
+
+## Oscillating antenna example
+
+`navier_antenna3d` saves a retarded ideal electric dipole in NAVIER02: E/B, Poynting flux, potential and energy fields. See [run and visualize](docs/antenna3d.md). The viewer selects E/B/Poynting lines explicitly and automatically reduces over-budget isosurfaces.

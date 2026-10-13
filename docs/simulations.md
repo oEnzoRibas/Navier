@@ -36,3 +36,7 @@ Exemplos pequenos de cada produtor (raiz do projeto):
 ```
 
 Gray usa NX NY NZ separados; demais usam lado/steps/intervalo. Os demais ainda escrevem NAVIER01+sidecar. V2 Wave/Gray escrevem campos com metadados dentro do .data e índice .nvi. Quantum3D, Elastic3D e Thermal3D foram adiados para priorizar armazenamento e validação.
+
+## Antena oscilante
+
+Novo `navier_antenna3d`: dipolo ideal, solução analítica retardada de Maxwell, campos E/B/Poynting/potencial/energia em NAVIER02. Veja [equações, máscara, testes e execução](antenna3d.md).
