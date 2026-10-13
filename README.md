@@ -2,6 +2,8 @@
 
 Navier is an open-source experimental storage and indexing engine for numerical simulation states. Its core includes independently tested in-memory and persistent B+ Trees implemented from scratch.
 
+Para uma explicação completa em português, da ideia inicial aos formatos binários e às B+ trees, leia [Navier: da ideia inicial ao armazenamento científico](docs/projeto-navier.md).
+
 ## Motivation
 
 Numerical simulations produce states over time. Checkpoints let applications explore earlier states without rerunning the solver. Exact step lookup and temporal interval queries are natural operations. A B+ Tree provides logarithmic lookup and efficient traversal of ordered, linked leaves.
