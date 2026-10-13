@@ -19,7 +19,10 @@ export class NavierCoreDataSource implements NavierDataSource {
   private constructor(private url:string,name:string,info:CoreInfo,first:CoreCheckpoint,private executor:TaskExecutor){
     let parameters:Record<string,unknown>={};try{const raw:unknown=JSON.parse(info.metadataJson||'{}');if(raw&&typeof raw==='object'&&!Array.isArray(raw))parameters=raw as Record<string,unknown>;}catch{throw new Error('Core dataset metadata is not valid JSON');}
     const fields=first.fields.map(descriptor),dimensions=fields[0]?.dimensions;if(!dimensions)throw new Error('Core dataset has no fields');
-    const meta={dimensions,fields,spacing:[1,1,1] as Dimensions,parameters,...(typeof parameters.solver==='string'?{solver:parameters.solver}:{}),...(typeof parameters.boundary==='string'?{boundary:parameters.boundary}:{})};
+    const rawSpacing=parameters.spacing;
+    if(rawSpacing!==undefined&&(!Array.isArray(rawSpacing)||rawSpacing.length!==3||rawSpacing.some(n=>typeof n!=='number'||!Number.isFinite(n)||n<=0)))throw new Error('Core metadata spacing must contain three positive finite values');
+    const spacing:Dimensions=Array.isArray(rawSpacing)?[Number(rawSpacing[0]),Number(rawSpacing[1]),Number(rawSpacing[2])]:[1,1,1];
+    const meta={dimensions,fields,spacing,parameters,...(typeof parameters.solver==='string'?{solver:parameters.solver}:{}),...(typeof parameters.boundary==='string'?{boundary:parameters.boundary}:{})};
     this.dataset={id:crypto.randomUUID(),name,fileSize:info.bytes,metadata:{...meta,fields:[...fields,...derivedDescriptors(meta)]}};
   }
   static async open(url:string,name:string,options:ReadOptions={},executor:TaskExecutor=new WorkerExecutor()):Promise<NavierCoreDataSource>{

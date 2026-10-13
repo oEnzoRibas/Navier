@@ -9,3 +9,5 @@ NavierCoreDataSource abre metadados em páginas, monta métricas salvas e solici
 Workers decodificam f32/f64, calculam derivadas e geometria, respeitando cache de 128 MiB e orçamentos de render. Precisão científica fica separada de Float32 GPU. Prefetch, reutilização de frames e troca de aparência evitam recarga contínua; instrumentação exibe IO/cache/FPS. Renderização volumétrica usa ray marching. Isosuperfície usa marching tetrahedra real (6 tetraedros/célula), interpolação e normais, malha Three.js, máximo 100000 triângulos. Processa camadas com cancelamento; não confundir isso com chunks persistentes.
 
 Rótulos de frentes de onda anteriores ainda usam pontos filtrados; selecione Isosuperfície para malha real. Gradientes, limites globais e streamlines da interface podem usar LOD; não substituem análise numérica validada. API permanente, streaming por bricks e consultas regionais estão no roadmap.
+
+Atualização 2026-10-13: seleção vetorial explícita para E/B/Poynting, spacing positivo em três eixos no adapter e LOD automático de isosuperfície. Veja [antena](antenna3d.md).

@@ -30,7 +30,7 @@ export function App(){
   const activate=(session:DatasetSession)=>{
     globalScan.current?.abort();setNotice(session.source instanceof NavierCoreDataSource?'Dataset NAVIER02 · core C++ e campos sob demanda.':'Dataset legado · campos sob demanda.');setPlaying(false);setActiveId(session.source.dataset.id);setIndex(0);setCompareIndex(0);setCompare(false);setInfo(undefined);setVisited([]);paletteManual.current=false;
     const m=session.source.dataset.metadata,field=m.fields.find(f=>f.operation==='magnitude')??m.fields[0];
-    setFieldId(field?.id??'');setSettings(s=>({...s,mode:m.dimensions[2]>1?'cloud':'scalar',vectorOverlay:false,streamlineOverlay:false,colors:{...s.colors,scaleMode:'auto',symmetric:false,logarithmic:false,thresholdLow:-Infinity,thresholdHigh:Infinity}}));
+    setFieldId(field?.id??'');setSettings(s=>({...s,mode:m.dimensions[2]>1?'cloud':'scalar',vectorOverlay:false,streamlineOverlay:false,vectorGroup:'',colors:{...s.colors,scaleMode:'auto',symmetric:false,logarithmic:false,thresholdLow:-Infinity,thresholdHigh:Infinity}}));
   };
   async function addSource(source:NavierDataSource){
     const checkpoints=await source.listCheckpoints();if(checkpoints.length===0){await source.close();throw new Error('O arquivo não contém checkpoints');}

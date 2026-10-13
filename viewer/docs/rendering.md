@@ -13,3 +13,5 @@ Engine renderiza quando dirty/câmera muda; mantém câmera entre checkpoints e 
 Referências: [Three.js Data3DTexture](https://threejs.org/docs/pages/Data3DTexture.html), [Vite workers](https://vite.dev/guide/features.html#web-workers).
 
 Isosuperfície é um modo separado com marching tetrahedra real, normais interpoladas por triangulação, MeshStandardMaterial e até 100000 triângulos. Extração em camadas no worker permite cancelamento. Campos já estão residentes; isso não implementa IO por bricks.
+
+Isosuperfície agora reduz automaticamente a grade no worker ao exceder 100 mil triângulos, recalculando uma malha completa. A UI informa a resolução; dados fonte são preservados, detalhes pequenos podem desaparecer. Linhas param ao encontrar máscara; campo nulo não produz geometria inválida.

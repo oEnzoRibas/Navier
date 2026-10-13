@@ -1,7 +1,7 @@
 import {marchingTetrahedra} from './isosurface';
-import type {FieldData} from '../data/types';
+import type {FieldData,Dimensions} from '../data/types';
 export interface GeometryOptions {kind:'glyphs'|'streamlines'|'cloud'|'isosurface';isoValue?:number;seeds:number;length:number;stepSize:number;scale:number;maxPoints:number;thresholdLow:number;thresholdHigh:number;absolute:boolean}
-export interface ScientificGeometry {positions:Float32Array;scalars:Float32Array;normals?:Float32Array}
+export interface ScientificGeometry {positions:Float32Array;scalars:Float32Array;normals?:Float32Array;sampleDimensions?:Dimensions;lodLevels?:number}
 function interpolate(field:FieldData,x:number,y:number,z:number):number{
   const [nx,ny,nz]=field.dimensions;x=Math.max(0,Math.min(nx-1,x));y=Math.max(0,Math.min(ny-1,y));z=Math.max(0,Math.min(nz-1,z));
   const ix=Math.floor(x),iy=Math.floor(y),iz=Math.floor(z),tx=x-ix,ty=y-iy,tz=z-iz;let sum=0;
@@ -37,7 +37,7 @@ export function buildGeometry(scalar:FieldData,components:readonly FieldData[],o
       let x=((seed*.61803398875+.13)%1)*(dims[0]-1),y=((seed*.41421356237+.31)%1)*(dims[1]-1),z=dims[2]>1?((seed*.73205080757+.41)%1)*(dims[2]-1):0;
       for(let n=0;n<steps;n++){
         const v=vector(x,y,z),mag=Math.hypot(...v);if(!Number.isFinite(mag)||mag<1e-12)break;
-        const middle=[x+(v[0]??0)/mag*step*.5,y+(v[1]??0)/mag*step*.5,z+(v[2]??0)/mag*step*.5];const vm=vector(middle[0]??0,middle[1]??0,middle[2]??0),mm=Math.hypot(...vm);if(mm<1e-12)break;
+        const middle=[x+(v[0]??0)/mag*step*.5,y+(v[1]??0)/mag*step*.5,z+(v[2]??0)/mag*step*.5];const vm=vector(middle[0]??0,middle[1]??0,middle[2]??0),mm=Math.hypot(...vm);if(!Number.isFinite(mm)||mm<1e-12)break;
         const xx=x+(vm[0]??0)/mm*step,yy=y+(vm[1]??0)/mm*step,zz=z+(vm[2]??0)/mm*step;
         if(xx<0||yy<0||zz<0||xx>dims[0]-1||yy>dims[1]-1||zz>dims[2]-1)break;
         const value=interpolate(scalar,x,y,z);if(accepted(value)){add(point(x,y,z),value);add(point(xx,yy,zz),value);}

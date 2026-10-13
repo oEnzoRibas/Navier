@@ -3,7 +3,7 @@ import type {LoadProgress} from '../../data/types';
 import {createReader} from '../rangeReader';
 import {scanHeaders,readField,planSampling,statistics} from '../navierFile';
 import {deriveField} from '../../analysis/derived';
-import {marchingTetrahedraAsync} from '../../analysis/isosurface';
+import {marchingTetrahedraAdaptive} from '../../analysis/isosurface';
 import {buildGeometry} from '../../analysis/geometry';
 import {checkAbort} from '../../data/errors';
 export async function executeTask(task:WorkerTask,signal?:AbortSignal,progress?:(p:LoadProgress)=>void):Promise<{result:WorkerResult;bytesRead:number;rangeReads:number;elapsedMs:number}> {
@@ -20,7 +20,7 @@ export async function executeTask(task:WorkerTask,signal?:AbortSignal,progress?:
   }else if(task.kind==='prepare'){result={...task.field,renderValues:Float32Array.from(task.field.values)};
   }else if(task.kind==='derive'){
     progress?.({phase:'deriving',bytesRead:0});result=deriveField(task.field,task.inputs,task.spacing,task.periodic);
-  }else if(task.options.kind==='isosurface')result=await marchingTetrahedraAsync(task.field,task.options.isoValue??.01,signal);
+  }else if(task.options.kind==='isosurface')result=await marchingTetrahedraAdaptive(task.field,task.options.isoValue??.01,signal);
   else result=buildGeometry(task.field,task.components,task.options);
   checkAbort(signal);return {result,bytesRead,rangeReads,elapsedMs:performance.now()-start};
 }

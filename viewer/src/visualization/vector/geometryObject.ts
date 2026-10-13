@@ -19,6 +19,7 @@ export function geometryObject(data:ScientificGeometry,settings:VisualizationSet
         const rgb=colorAt(settings.colors.palette,t);colors.push(rgb[0]/255,rgb[1]/255,rgb[2]/255);
       }
     }
+    if(!positions.length)return {object:new THREE.Group(),textures:[]};
     const geometry=new LineSegmentsGeometry();geometry.setPositions(positions);geometry.setColors(colors);
     const material=new LineMaterial({vertexColors:true,linewidth:settings.lineWidth,transparent:settings.colors.opacity<1,opacity:settings.colors.opacity});
     const object=new LineSegments2(geometry,material);object.computeLineDistances();return {object,textures:[]};

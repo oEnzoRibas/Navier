@@ -7,7 +7,7 @@ export const modes:readonly ModeDescriptor[]=[
   {id:'cloud',label:'Nuvem de pontos',dimensions:'3d'},
   {id:'volume',label:'Volume · ray marching',dimensions:'3d'},
   {id:'glyphs',label:'Vetores',dimensions:'any',requiresVector:true},
-  {id:'streamlines',label:'Linhas de fluxo',dimensions:'any',requiresVector:true},
+  {id:'streamlines',label:'Linhas de campo / fluxo',dimensions:'any',requiresVector:true},
   {id:'wavefront',label:'Frente de onda · pontos',dimensions:'3d'},
   {id:'sparse',label:'Células ocupadas',dimensions:'3d'}];
 export function availableModes(is3d:boolean,hasVector:boolean){return modes.filter(m=>(m.dimensions==='any'||m.dimensions===(is3d?'3d':'2d'))&&(!m.requiresVector||hasVector));}

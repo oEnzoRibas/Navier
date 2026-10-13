@@ -2,6 +2,7 @@ import type {FieldData} from '../data/types';
 import type {ScientificGeometry} from './geometry';
 const corners:readonly (readonly [number,number,number])[]=[[0,0,0],[1,0,0],[1,1,0],[0,1,0],[0,0,1],[1,0,1],[1,1,1],[0,1,1]];
 const tetrahedra:readonly (readonly number[])[]=[[0,5,1,6],[0,1,2,6],[0,2,3,6],[0,3,7,6],[0,7,4,6],[0,4,5,6]];
+class TriangleBudgetExceeded extends Error {}
 type Point=readonly [number,number,number];
 /** Piecewise-linear marching tetrahedra. Produces triangles, not thresholded points. */
 export function marchingTetrahedra(field:FieldData,level:number,maxTriangles=100000):ScientificGeometry{
@@ -10,7 +11,7 @@ export function marchingTetrahedra(field:FieldData,level:number,maxTriangles=100
   const triangle=(a:Point,b:Point,c:Point,direction:Point)=>{
     const u=b.map((v,i)=>v-a[i]!),v=c.map((value,i)=>value-a[i]!);let normal:Point=[u[1]!*v[2]!-u[2]!*v[1]!,u[2]!*v[0]!-u[0]!*v[2]!,u[0]!*v[1]!-u[1]!*v[0]!];const length=Math.hypot(...normal);if(length<1e-15)return;
     if(normal.reduce((sum,n,i)=>sum+n*direction[i]!,0)<0){[b,c]=[c,b];normal=normal.map(n=>-n) as unknown as Point;}
-    if(scalars.length/3>=maxTriangles)throw new Error('Isosurface triangle budget exceeded. Reduce quality or change the isovalue.');
+    if(scalars.length/3>=maxTriangles)throw new TriangleBudgetExceeded('Isosurface triangle budget exceeded. Reduce quality or change the isovalue.');
     for(const p of [a,b,c]){positions.push(...p);normals.push(...normal.map(n=>n/length));scalars.push(level);}
   };
   for(let z=0;z<nz-1;z++)for(let y=0;y<ny-1;y++)for(let x=0;x<nx-1;x++){
@@ -42,4 +43,40 @@ export async function marchingTetrahedraAsync(field:FieldData,level:number,signa
   checkAbort(signal);const positions=new Float32Array(vertices*3),normals=new Float32Array(vertices*3),scalars=new Float32Array(vertices);let offset=0;
   for(const layer of layers){positions.set(layer.positions,offset*3);normals.set(layer.normals!,offset*3);scalars.set(layer.scalars,offset);offset+=layer.scalars.length;}
   return {positions,normals,scalars};
+}
+
+/** A complete bounded mesh at lower resolution, never a truncated mesh. The
+ * source buffers remain untouched. Resampling includes both domain endpoints. */
+export async function marchingTetrahedraAdaptive(field:FieldData,level:number,signal?:AbortSignal,maxTriangles=100000):Promise<ScientificGeometry>{
+  let sampled=field,levels=0;
+  for(;;){
+    checkAbort(signal);
+    try{
+      const mesh=await marchingTetrahedraAsync(sampled,level,signal,maxTriangles);
+      return {...mesh,sampleDimensions:sampled.dimensions,lodLevels:levels};
+    }catch(error){
+      if(!(error instanceof TriangleBudgetExceeded))throw error;
+      if(sampled.dimensions.every(n=>n===2))throw error;
+    }
+    const [nx,ny,nz]=sampled.dimensions;
+    const dims=[Math.max(2,Math.ceil(nx/2)),Math.max(2,Math.ceil(ny/2)),Math.max(2,Math.ceil(nz/2))] as const;
+    const values=sampled.values instanceof Float32Array?new Float32Array(dims[0]*dims[1]*dims[2]):new Float64Array(dims[0]*dims[1]*dims[2]);
+    for(let z=0;z<dims[2];z++){
+      checkAbort(signal);
+      for(let y=0;y<dims[1];y++)for(let x=0;x<dims[0];x++){
+        const p=[x*(nx-1)/(dims[0]-1),y*(ny-1)/(dims[1]-1),z*(nz-1)/(dims[2]-1)];
+        const base=p.map(Math.floor),fraction=p.map((v,i)=>v-base[i]!);let value=0;
+        for(let dz=0;dz<2;dz++)for(let dy=0;dy<2;dy++)for(let dx=0;dx<2;dx++){
+          const weight=(dx?fraction[0]!:1-fraction[0]!)*(dy?fraction[1]!:1-fraction[1]!)*(dz?fraction[2]!:1-fraction[2]!);
+          if(weight===0)continue;
+          const at=(Math.min(base[2]!+dz,nz-1)*ny+Math.min(base[1]!+dy,ny-1))*nx+Math.min(base[0]!+dx,nx-1);
+          value+=weight*sampled.values[at]!;
+        }
+        values[(z*dims[1]+y)*dims[0]+x]=value;
+      }
+      if(z%4===0)await new Promise<void>(resolve=>setTimeout(resolve,0));
+    }
+    const {renderValues:_previousRender,...science}=sampled;
+    sampled={...science,values,dimensions:dims};levels++;
+  }
 }
